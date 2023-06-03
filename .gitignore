@@ -1,6 +1,10 @@
 # dependencies  
 node_modules/  
 
+# compiled output
+/snowmail/dist
+/snowmail/node_modules
+
 # IDE  
 /.idea  
 /.awcache  
