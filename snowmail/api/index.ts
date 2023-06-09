@@ -14,7 +14,7 @@ const bootstrap = async () => {
     cachedServer = server;
   }
   return cachedServer;
-}
+};
 
 export default async (req: VercelRequest, res: VercelResponse) => {
   const server = await bootstrap();
