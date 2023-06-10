@@ -198,6 +198,7 @@ export class EmailController {
   async mailgun(@Req() req: any) {
     try {
       console.log('Received request from Mailgun');
+      console.log('Request: ' + JSON.stringify(req.body));
       // Make sure that the request is coming from Mailgun
       const signingKey = process.env.MAILGUN_SIGNING_KEY;
 
@@ -211,15 +212,10 @@ export class EmailController {
       // Make sure that the req has the required data
       if (!req.recipient || !req.sender || !req.subject || !req['body-plain']) {
         throw new HttpException(
-          'Request is missing required data' + JSON.stringify(req),
+          'Request is missing required data',
           HttpStatus.NOT_ACCEPTABLE,
         );
       }
-
-      console.log('Recipient:', req.recipient);
-      console.log('Sender:', req.sender);
-      console.log('Subject:', req.subject);
-      console.log('Body Plain:', req['body-plain']);
 
       const recipient = req.recipient;
       const sender = req.sender;
