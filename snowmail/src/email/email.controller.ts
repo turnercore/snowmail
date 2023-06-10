@@ -196,9 +196,9 @@ export class EmailController {
 
   @Post('mailgun')
   async mailgun(@Req() req: any) {
+    console.log('Mailgun request received');
+    console.log('Request: ' + JSON.stringify(req));
     try {
-      console.log('Received request from Mailgun');
-      console.log('Request: ' + JSON.stringify(req.body));
       // Make sure that the request is coming from Mailgun
       const signingKey = process.env.MAILGUN_SIGNING_KEY;
 
@@ -208,7 +208,6 @@ export class EmailController {
       if (!isVerified) {
         throw new HttpException('Unauthorized', HttpStatus.UNAUTHORIZED);
       }
-
       // Make sure that the req has the required data
       if (!req.recipient || !req.sender || !req.subject || !req['body-plain']) {
         throw new HttpException(
