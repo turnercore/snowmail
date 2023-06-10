@@ -1,6 +1,5 @@
 {
   "dependencies": {
-    "@vercel/node": "^2.15.1",
-    "vercel": "^30.2.1"
+    "@vercel/node": "^2.15.1"
   }
 }
