@@ -198,53 +198,53 @@ export class EmailController {
   async mailgun(@Req() req: any) {
     console.log('Mailgun request received');
     console.log('Request: ' + JSON.stringify(req));
-    try {
-      // Make sure that the request is coming from Mailgun
-      const signingKey = process.env.MAILGUN_SIGNING_KEY;
+    // try {
+    //   // Make sure that the request is coming from Mailgun
+    //   const signingKey = process.env.MAILGUN_SIGNING_KEY;
 
-      // Verify the authenticity of the webhook request
-      const isVerified = verifyMailgunWebhook(req, signingKey);
+    //   // Verify the authenticity of the webhook request
+    //   const isVerified = verifyMailgunWebhook(req, signingKey);
 
-      if (!isVerified) {
-        throw new HttpException('Unauthorized', HttpStatus.UNAUTHORIZED);
-      }
-      // Make sure that the req has the required data
-      if (!req.recipient || !req.sender || !req.subject || !req['body-plain']) {
-        throw new HttpException(
-          'Request is missing required data',
-          HttpStatus.NOT_ACCEPTABLE,
-        );
-      }
+    //   if (!isVerified) {
+    //     throw new HttpException('Unauthorized', HttpStatus.UNAUTHORIZED);
+    //   }
+    //   // Make sure that the req has the required data
+    //   if (!req.recipient || !req.sender || !req.subject || !req['body-plain']) {
+    //     throw new HttpException(
+    //       'Request is missing required data',
+    //       HttpStatus.NOT_ACCEPTABLE,
+    //     );
+    //   }
 
-      const recipient = req.recipient;
-      const sender = req.sender;
-      const subject = req.subject;
-      const plainText = req['body-plain'];
-      const content = req.content || plainText;
+    //   const recipient = req.recipient;
+    //   const sender = req.sender;
+    //   const subject = req.subject;
+    //   const plainText = req['body-plain'];
+    //   const content = req.content || plainText;
 
-      // Create a JSON data object with the extracted email data
-      const parsedData = {
-        recipient,
-        sender,
-        subject,
-        content,
-      };
+    //   // Create a JSON data object with the extracted email data
+    //   const parsedData = {
+    //     recipient,
+    //     sender,
+    //     subject,
+    //     content,
+    //   };
 
-      // Process the email
-      this.process(parsedData);
-      // Return a success response to Mailgun
-      return {
-        statusCode: HttpStatus.OK,
-      };
-    } catch (error: any) {
-      // Catch and handle any errors that occur during the processing of the email
-      console.error(`Failed to process email: ${error.message}`);
+    //   // Process the email
+    //   this.process(parsedData);
+    //   // Return a success response to Mailgun
+    //   return {
+    //     statusCode: HttpStatus.OK,
+    //   };
+    // } catch (error: any) {
+    //   // Catch and handle any errors that occur during the processing of the email
+    //   console.error(`Failed to process email: ${error.message}`);
 
-      // Return an error response to Mailgun
-      return {
-        statusCode: HttpStatus.NOT_ACCEPTABLE,
-      };
-    }
+    //   // Return an error response to Mailgun
+    //   return {
+    //     statusCode: HttpStatus.NOT_ACCEPTABLE,
+    //   };
+    // }
   }
 
   // This method will only be exposed if the environment variable allows it
