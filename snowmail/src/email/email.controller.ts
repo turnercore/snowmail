@@ -2,6 +2,7 @@ import {
   Controller,
   Post,
   Body,
+  Req,
   HttpException,
   HttpStatus,
 } from '@nestjs/common';
@@ -12,7 +13,8 @@ import {
   threatDetectorSystemMessage,
   rewriteSystemMessage,
 } from '../consts/systemMessages';
-import { response } from 'express';
+import { Request } from 'express';
+import crypto from 'crypto';
 
 @Controller('email')
 export class EmailController {
@@ -26,8 +28,9 @@ export class EmailController {
   }
 
   // Process is the main method that will be called by the Snowmail app
-  async process(@Body() data: any) {
+  async process(data: any) {
     try {
+      console.log('Processing data: ' + JSON.stringify(data));
       // Call the moderate method to get the moderation result
       const moderationResult = await this.moderate(data);
 
@@ -48,22 +51,24 @@ export class EmailController {
           }
         }
       }
-
+      let response = {};
       // If the content is flagged, rewrite content. Return the flagged result and the rewritten content
       if (flagged) {
         const rewriteResult = await this.rewrite(data.content);
-        return {
+        response = {
           flagged,
           flags,
           rewriteResult,
         };
       } else {
         // If the content is not flagged, return the moderation result
-        return {
+        response = {
           flagged,
           moderationResult,
           content: data.content,
         };
+        console.log('Response: ' + JSON.stringify(response));
+        return response;
       }
     } catch (error: any) {
       // Catch and handle any errors that occur during the moderation request
@@ -184,11 +189,61 @@ export class EmailController {
         HttpStatus.NOT_FOUND,
       );
     } else {
-      console.log('Recieved request to /email/process');
-      console.log('Request body:' + JSON.stringify(data));
       const response = this.process(data);
-      console.log('Response:' + JSON.stringify(response));
       return response;
+    }
+  }
+
+  @Post('mailgun')
+  async mailgun(@Req() req: any) {
+    try {
+      console.log('Received request from Mailgun');
+      // Make sure that the request is coming from Mailgun
+      const signingKey = process.env.MAILGUN_SIGNING_KEY;
+
+      // Verify the authenticity of the webhook request
+      const isVerified = verifyMailgunWebhook(req, signingKey);
+
+      if (!isVerified) {
+        throw new HttpException('Unauthorized', HttpStatus.UNAUTHORIZED);
+      }
+
+      // Make sure that the req has the required data
+      if (!req.recipient || !req.sender || !req.subject || !req['body-plain']) {
+        throw new HttpException(
+          'Request is missing required data',
+          HttpStatus.NOT_ACCEPTABLE,
+        );
+      }
+
+      const recipient = req.recipient;
+      const sender = req.sender;
+      const subject = req.subject;
+      const plainText = req['body-plain'];
+      const content = req.content || plainText;
+
+      // Create a JSON data object with the extracted email data
+      const parsedData = {
+        recipient,
+        sender,
+        subject,
+        content,
+      };
+
+      // Process the email
+      this.process(parsedData);
+      // Return a success response to Mailgun
+      return {
+        statusCode: HttpStatus.OK,
+      };
+    } catch (error: any) {
+      // Catch and handle any errors that occur during the processing of the email
+      console.error(`Failed to process email: ${error.message}`);
+
+      // Return an error response to Mailgun
+      return {
+        statusCode: HttpStatus.NOT_ACCEPTABLE,
+      };
     }
   }
 
@@ -239,3 +294,17 @@ export class EmailController {
     }
   }
 }
+
+const verifyMailgunWebhook = (
+  request: Request,
+  signingKey: string,
+): boolean => {
+  const { timestamp, token, signature } = request.body;
+
+  const encodedToken = crypto
+    .createHmac('sha256', signingKey)
+    .update(timestamp.concat(token))
+    .digest('hex');
+
+  return encodedToken === signature;
+};
