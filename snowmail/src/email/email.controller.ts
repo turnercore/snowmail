@@ -2,7 +2,6 @@ import {
   Controller,
   Post,
   Body,
-  Req,
   HttpException,
   HttpStatus,
 } from '@nestjs/common';
@@ -15,6 +14,18 @@ import {
 } from '../consts/systemMessages';
 import { Request } from 'express';
 import crypto from 'crypto';
+
+interface MailgunWebhookPayload {
+  signature: string;
+  recipient: string;
+  sender: string;
+  subject: string;
+  'body-plain': string;
+  timestamp: string;
+  token: string;
+  'body-html': string;
+  // additional fields that you expect from the Mailgun webhook payload
+}
 
 @Controller('email')
 export class EmailController {
@@ -195,56 +206,60 @@ export class EmailController {
   }
 
   @Post('mailgun')
-  async mailgun(@Req() req: any) {
+  async mailgun(@Body() body: MailgunWebhookPayload) {
     console.log('Mailgun request received');
-    console.log('Request: ' + JSON.stringify(req));
-    // try {
-    //   // Make sure that the request is coming from Mailgun
-    //   const signingKey = process.env.MAILGUN_SIGNING_KEY;
+    try {
+      // Make sure that the request is coming from Mailgun
+      const signingKey = process.env.MAILGUN_SIGNING_KEY;
 
-    //   // Verify the authenticity of the webhook request
-    //   const isVerified = verifyMailgunWebhook(req, signingKey);
+      // Verify the authenticity of the webhook request
+      const isVerified = verifyMailgunWebhook(body, signingKey);
 
-    //   if (!isVerified) {
-    //     throw new HttpException('Unauthorized', HttpStatus.UNAUTHORIZED);
-    //   }
-    //   // Make sure that the req has the required data
-    //   if (!req.recipient || !req.sender || !req.subject || !req['body-plain']) {
-    //     throw new HttpException(
-    //       'Request is missing required data',
-    //       HttpStatus.NOT_ACCEPTABLE,
-    //     );
-    //   }
+      if (!isVerified) {
+        throw new HttpException('Unauthorized', HttpStatus.UNAUTHORIZED);
+      }
+      // Make sure that the req has the required data
+      if (
+        !body.recipient ||
+        !body.sender ||
+        !body.subject ||
+        !body['body-plain']
+      ) {
+        throw new HttpException(
+          'Request is missing required data',
+          HttpStatus.NOT_ACCEPTABLE,
+        );
+      }
 
-    //   const recipient = req.recipient;
-    //   const sender = req.sender;
-    //   const subject = req.subject;
-    //   const plainText = req['body-plain'];
-    //   const content = req.content || plainText;
+      const recipient = body.recipient;
+      const sender = body.sender;
+      const subject = body.subject;
+      const plainText = body['body-plain'];
+      const content = plainText;
 
-    //   // Create a JSON data object with the extracted email data
-    //   const parsedData = {
-    //     recipient,
-    //     sender,
-    //     subject,
-    //     content,
-    //   };
+      // Create a JSON data object with the extracted email data
+      const parsedData = {
+        recipient,
+        sender,
+        subject,
+        content,
+      };
 
-    //   // Process the email
-    //   this.process(parsedData);
-    //   // Return a success response to Mailgun
-    //   return {
-    //     statusCode: HttpStatus.OK,
-    //   };
-    // } catch (error: any) {
-    //   // Catch and handle any errors that occur during the processing of the email
-    //   console.error(`Failed to process email: ${error.message}`);
+      // Process the email
+      this.process(parsedData);
+      // Return a success response to Mailgun
+      return {
+        statusCode: HttpStatus.OK,
+      };
+    } catch (error: any) {
+      // Catch and handle any errors that occur during the processing of the email
+      console.error(`Failed to process email: ${error.message}`);
 
-    //   // Return an error response to Mailgun
-    //   return {
-    //     statusCode: HttpStatus.NOT_ACCEPTABLE,
-    //   };
-    // }
+      // Return an error response to Mailgun
+      return {
+        statusCode: HttpStatus.NOT_ACCEPTABLE,
+      };
+    }
   }
 
   // This method will only be exposed if the environment variable allows it
@@ -296,10 +311,10 @@ export class EmailController {
 }
 
 const verifyMailgunWebhook = (
-  request: Request,
+  body: Request['body'],
   signingKey: string,
 ): boolean => {
-  const { timestamp, token, signature } = request.body;
+  const { timestamp, token, signature } = body;
 
   const encodedToken = crypto
     .createHmac('sha256', signingKey)
