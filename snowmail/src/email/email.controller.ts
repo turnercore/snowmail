@@ -211,7 +211,7 @@ export class EmailController {
       // Make sure that the req has the required data
       if (!req.recipient || !req.sender || !req.subject || !req['body-plain']) {
         throw new HttpException(
-          'Request is missing required data',
+          'Request is missing required data' + JSON.stringify(req),
           HttpStatus.NOT_ACCEPTABLE,
         );
       }
