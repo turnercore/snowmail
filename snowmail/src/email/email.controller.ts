@@ -216,6 +216,11 @@ export class EmailController {
         );
       }
 
+      console.log('Recipient:', req.recipient);
+      console.log('Sender:', req.sender);
+      console.log('Subject:', req.subject);
+      console.log('Body Plain:', req['body-plain']);
+
       const recipient = req.recipient;
       const sender = req.sender;
       const subject = req.subject;
