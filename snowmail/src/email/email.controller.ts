@@ -12,6 +12,7 @@ import {
   threatDetectorSystemMessage,
   rewriteSystemMessage,
 } from '../consts/systemMessages';
+import { response } from 'express';
 
 @Controller('email')
 export class EmailController {
@@ -183,7 +184,11 @@ export class EmailController {
         HttpStatus.NOT_FOUND,
       );
     } else {
-      return this.process(data);
+      console.log('Recieved request to /email/process');
+      console.log('Request body:' + JSON.stringify(data));
+      const response = this.process(data);
+      console.log('Response:' + JSON.stringify(response));
+      return response;
     }
   }
 
