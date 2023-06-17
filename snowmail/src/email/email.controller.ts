@@ -15,6 +15,19 @@ import {
 import { Request } from 'express';
 import crypto from 'crypto';
 
+// Mailgun
+import formData from 'form-data';
+import Mailgun from 'mailgun.js';
+import { Resolution } from 'mailgun.js/Enums';
+const mailgun = new Mailgun(formData);
+const mg = mailgun.client({
+  username: 'api',
+  key: process.env.MAILGUN_API_KEY || '',
+});
+const mailgunDomain = process.env.MAILGUN_DOMAIN || '';
+// Forward email address
+const forwardEmail = process.env.FORWARD_EMAIL || '';
+
 interface MailgunWebhookPayload {
   signature: string;
   recipient: string;
@@ -51,6 +64,13 @@ export class EmailController {
       // If the content was flagged by first-pass moderation, get the flags.
       // eslint-disable-next-line prefer-const
       let flags = [];
+      let response = {
+        flagged: false,
+        flags: [],
+        rewriteBody: '',
+        rewriteSubject: '',
+      };
+
       if (flagged) {
         for (const result of moderationResult.results) {
           if (result.flagged) {
@@ -62,25 +82,35 @@ export class EmailController {
           }
         }
       }
-      let response = {};
       // If the content is flagged, rewrite content. Return the flagged result and the rewritten content
       if (flagged) {
-        const rewriteResult = await this.rewrite(data.content);
+        const rewrite = await this.rewrite(data.content);
         response = {
           flagged,
           flags,
-          rewriteResult,
+          rewriteBody: rewrite.body,
+          rewriteSubject: rewrite.subject,
         };
-      } else {
-        // If the content is not flagged, return the moderation result
-        response = {
-          flagged,
-          moderationResult,
-          content: data.content,
-        };
-        console.log('Response: ' + JSON.stringify(response));
-        return response;
       }
+
+      // The content is flagged, send the processed email back
+      const domain = mailgunDomain;
+      const fromEmail = data.sender; // adjust this to be your "from" email
+      const toEmails = [forwardEmail];
+      const subject = response.rewriteSubject || data.subject;
+      const htmlBody = response.rewriteBody || data.content;
+      const textBody = response.rewriteSubject || data.content;
+
+      const sendEmailResult = await sendEmail(
+        domain,
+        fromEmail,
+        toEmails,
+        subject,
+        htmlBody,
+        textBody,
+      );
+
+      return response;
     } catch (error: any) {
       // Catch and handle any errors that occur during the moderation request
       throw new HttpException(
@@ -118,6 +148,7 @@ export class EmailController {
     const systemMessage =
       rewriteSystemMessage + `In your rewritten message, use a ${tone} tone.`;
     try {
+      let result;
       // Make sure content is provided
       if (!content || content.length <= 0) {
         throw new HttpException('Content is required', HttpStatus.BAD_REQUEST);
@@ -141,7 +172,11 @@ export class EmailController {
           throw new Error('Unexpected response from OpenAI API');
         }
 
-        return completion.data.choices[0].message.content;
+        const body = completion.data.choices[0].message.content;
+        const subject = '';
+        result.body = body;
+        result.subject = subject;
+        return result;
       }
     } catch (error: any) {
       // Catch and handle any errors that occur during the rewrite request
@@ -323,3 +358,28 @@ const verifyMailgunWebhook = (
 
   return encodedToken === signature;
 };
+
+// Functions
+async function sendEmail(
+  domain: string,
+  fromEmail: string,
+  toEmails: Array<string>,
+  subject: string,
+  htmlBody: string,
+  textBody: string,
+) {
+  try {
+    // Create and send the email
+    const sendResult = await mg.messages.create(domain, {
+      from: fromEmail,
+      to: toEmails,
+      subject: subject,
+      html: htmlBody,
+      text: textBody,
+    });
+
+    console.log(sendResult);
+  } catch (error) {
+    console.error(error);
+  }
+}
