@@ -9,7 +9,10 @@
 			"extensions": [
 				"GitHub.copilot",
 				"esbenp.prettier-vscode",
-				"dbaeumer.vscode-eslint"
+				"dbaeumer.vscode-eslint",
+				"GitHub.copilot-labs",
+				"GitHub.copilot-nightly",
+				"GitHub.copilot-chat"
 			]
 		}
 	}
